@@ -2,8 +2,9 @@
 import cv2
 import numpy as np
 
+# settings
 PIXELS_PER_CENTIMETER = 18
-
+IMAGE_TO_SCAN = "img/shirt1.jpg"
 
 def get_button_keypoints(grayscale_img):
     # Set up the detector with default parameters.
@@ -32,7 +33,7 @@ def calculate_button_distance(keypoints):
 
 
 # Read image
-img = cv2.imread("img/shirt1.jpg", cv2.IMREAD_GRAYSCALE)
+img = cv2.imread(IMAGE_TO_SCAN, cv2.IMREAD_GRAYSCALE)
 
 keypoint_list = get_button_keypoints(img)
 im_with_keypoints = draw_buttons_on_image(keypoint_list, img)

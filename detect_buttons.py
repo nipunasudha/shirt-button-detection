@@ -3,11 +3,12 @@ from cv2 import *
 import cv2
 import numpy as np
 import ctypes
+import math
 
 # SETTINGS
-IMAGE_FILE_NAME = "shirt (2).jpg"
+IMAGE_FILE_NAME = "shirt (6).jpg"
 PIXELS_PER_INCH = 40
-TOLERENCE_INCHES = 0.5
+TOLERENCE_INCHES = 0.2
 WIDTH_PERCENTAGE_OF_SCANING_AREA = 30
 
 # DEFINITIONS
@@ -86,9 +87,10 @@ def draw_buttons_on_image(_keypoints, source_img):
 
 
 def calculate_button_distance_inches(keypoints):
-    topbutton_point = keypoints[0].pt
-    secondbutton_point = keypoints[1].pt
-    pixel_distance = secondbutton_point[1] - topbutton_point[1]
+    pt_a = keypoints[0].pt
+    pt_b = keypoints[1].pt
+    pixel_distance = math.sqrt((pt_b[0] - pt_a[0]) ** 2 + (pt_b[1] - pt_a[1]) ** 2)
+    # pixel_distance = secondbutton_point[1] - topbutton_point[1]
     real_distance = pixel_distance / PIXELS_PER_INCH
     print "Distance between first two buttons: " + "{0:.2f}".format(real_distance) + "inches"
     return real_distance
@@ -144,5 +146,6 @@ if im_with_keypoints is not None:
     render_result(stiched_final_image, inches)
     show_image_fit_screen(stiched_final_image, "Result")
     cv2.waitKey(0)
+
 else:
     print "DETECTION FAILED"

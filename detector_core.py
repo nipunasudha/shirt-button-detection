@@ -1,15 +1,11 @@
 # Standard imports
 from cv2 import *
 import cv2
-import numpy as np
 import ctypes
 import math
 
 # SETTINGS
-IMAGE_FILE_NAME = "shirt (6).jpg"
-PIXELS_PER_INCH = 40
-TOLERENCE_INCHES = 0.2
-WIDTH_PERCENTAGE_OF_SCANING_AREA = 30
+settings = {}
 
 # DEFINITIONS
 user32 = ctypes.windll.user32
@@ -46,7 +42,7 @@ def crop_and_get_buttons_only(input_image):
     image_clone = input_image.copy()
     im_height, im_width = image_clone.shape[:2]
     mid_point = im_width / 2
-    half_scan_width = WIDTH_PERCENTAGE_OF_SCANING_AREA * im_width / 200
+    half_scan_width = settings["WIDTH_PERCENTAGE_OF_SCANNING_AREA"] * im_width / 200
     return image_clone[:, mid_point - half_scan_width: mid_point + half_scan_width]
 
 
@@ -54,7 +50,7 @@ def stich_cropped_buttons_back(original, cropped):
     image_clone = original.copy()
     im_height, im_width = image_clone.shape[:2]
     mid_point = im_width / 2
-    half_scan_width = WIDTH_PERCENTAGE_OF_SCANING_AREA * im_width / 200
+    half_scan_width = settings["WIDTH_PERCENTAGE_OF_SCANNING_AREA"] * im_width / 200
     image_clone[:, mid_point - half_scan_width: mid_point + half_scan_width] = cropped
     return image_clone
 
@@ -91,7 +87,7 @@ def calculate_button_distance_inches(keypoints):
     pt_b = keypoints[1].pt
     pixel_distance = math.sqrt((pt_b[0] - pt_a[0]) ** 2 + (pt_b[1] - pt_a[1]) ** 2)
     # pixel_distance = secondbutton_point[1] - topbutton_point[1]
-    real_distance = pixel_distance / PIXELS_PER_INCH
+    real_distance = pixel_distance / settings["PIXELS_PER_INCH"]
     print "Distance between first two buttons: " + "{0:.2f}".format(real_distance) + "inches"
     return real_distance
 
@@ -112,14 +108,14 @@ def render_instructions(image_):
     im_width, im_height = image_.shape[:2]
     cv2.rectangle(image_, (0, im_width - 40), (im_height, im_width), (0, 0, 0), cv2.FILLED,
                   lineType=8)
-    cv2.putText(image_, 'PRESS ANY KEY TO EXIT', (0, im_width - 10), font, 1,
+    cv2.putText(image_, 'PRESS \'Q\' TO EXIT', (0, im_width - 10), font, 1,
                 (255, 255, 255),
                 3, cv2.LINE_AA)
 
 
 def render_result(image_, inches):
     global font
-    is_acceptable = abs(inches - 2) < TOLERENCE_INCHES
+    is_acceptable = abs(inches - 2) < settings["TOLERANCE_INCHES"]
     result_text = "Button Distance: {0:.2f}\" ACCEPTED: {1}".format(inches, "YES" if is_acceptable else "NO")
 
     im_height, im_width = image_.shape[:2]
@@ -131,21 +127,40 @@ def render_result(image_, inches):
                 3, cv2.LINE_AA)
 
 
-# Read image
-img_color = cv2.imread("img/" + IMAGE_FILE_NAME, cv2.IMREAD_COLOR)
+def detection_entry_point(input_image):
+    cropped_color = crop_and_get_buttons_only(input_image)
 
-cropped_color = crop_and_get_buttons_only(img_color)
+    keypoint_list = get_button_keypoints(cropped_color)
+    im_with_keypoints = draw_buttons_on_image(keypoint_list, cropped_color)
+    if im_with_keypoints is not None:
+        stiched_final_image = stich_cropped_buttons_back(input_image, im_with_keypoints)
+        inches = calculate_button_distance_inches(keypoint_list)
+        # Show keypoints
+        render_instructions(stiched_final_image)
+        render_result(stiched_final_image, inches)
+        show_image_fit_screen(stiched_final_image, "Result")
 
-keypoint_list = get_button_keypoints(cropped_color)
-im_with_keypoints = draw_buttons_on_image(keypoint_list, cropped_color)
-if im_with_keypoints is not None:
-    stiched_final_image = stich_cropped_buttons_back(img_color, im_with_keypoints)
-    inches = calculate_button_distance_inches(keypoint_list)
-    # Show keypoints
-    render_instructions(stiched_final_image)
-    render_result(stiched_final_image, inches)
-    show_image_fit_screen(stiched_final_image, "Result")
+    else:
+        render_instructions(input_image)
+        show_image_fit_screen(input_image, "Result")
+
+
+def detection_api_detect_from_image(_settings):
+    global settings
+    settings = _settings
+    frame = cv2.imread("img/" + settings["IMAGE_FILE_NAME"], cv2.IMREAD_COLOR)
+    detection_entry_point(frame)
     cv2.waitKey(0)
 
-else:
-    print "DETECTION FAILED"
+
+def detection_api_detect_from_webcam(_settings):
+    global settings
+    settings = _settings
+    cap = cv2.VideoCapture(0)
+    while cap.isOpened():
+        ret, frame = cap.read()
+        detection_entry_point(frame)
+        if cv2.waitKey(10) & 0xFF == ord('q'):
+            break
+    cap.release()
+    cv2.destroyAllWindows()  # destroy all the opened windows

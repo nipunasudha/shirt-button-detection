@@ -103,6 +103,11 @@ def show_image_fit_screen(image, window_name):
     cv2.imshow(window_name, image)
 
 
+def show_status(status):
+    status_img = cv2.imread("img/status_" + str(status) + ".jpg", cv2.IMREAD_COLOR)
+    cv2.imshow("Status", status_img)
+
+
 def render_instructions(image_):
     global font
     im_width, im_height = image_.shape[:2]
@@ -115,7 +120,16 @@ def render_instructions(image_):
 
 def render_result(image_, inches):
     global font
-    is_acceptable = abs(inches - 2) < settings["TOLERANCE_INCHES"]
+    diff = abs(inches - 2)
+    quality = 0
+    if diff < settings["QUALITY_TOLERANCE_INCHES"]:
+        quality = 2
+    elif diff < settings["ACCEPTED_TOLERANCE_INCHES"]:
+        quality = 1
+
+    show_status(quality)
+
+    is_acceptable = quality is not 0
     result_text = "Button Distance: {0:.2f}\" ACCEPTED: {1}".format(inches, "YES" if is_acceptable else "NO")
 
     im_height, im_width = image_.shape[:2]
